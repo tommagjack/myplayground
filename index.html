@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Playground | Nintendo Switch Library</title>
+
+    <!-- Google Fonts: Kanit (สำหรับภาษาไทย) และ Fredoka (สำหรับความขี้เล่น) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nintendo: {
+                            DEFAULT: '#E60012',
+                            dark: '#cc0010',
+                            light: '#ff3344'
+                        },
+                        surface: '#f8f9fa'
+                    },
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                        playful: ['Fredoka', 'Kanit', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'playful': '0 8px 0 rgba(0,0,0,0.1)',
+                        'playful-hover': '0 4px 0 rgba(0,0,0,0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Styles & Micro-interactions */
+        body {
+            background-color: #f4f4f9;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .btn-playful {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-playful:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 rgba(0,0,0,0.1);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-8px) rotate(-1deg);
+            box-shadow: 0 20px 25px -5px rgba(230, 0, 18, 0.1), 0 8px 10px -6px rgba(230, 0, 18, 0.1);
+            border-color: #E60012;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #E60012; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #cc0010; 
+        }
+
+        /* Hide views initially */
+        .view-section {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        .view-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #E60012;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-nintendo text-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer select-none transition-transform hover:scale-105" onclick="app.navigate('home')">
+                <i class="fa-solid fa-gamepad text-3xl"></i>
+                <h1 class="text-2xl font-playful font-bold tracking-wider">My Playground</h1>
+            </div>
+            
+            <nav class="flex gap-4">
+                <button onclick="app.navigate('home')" class="hover:bg-white hover:text-nintendo px-4 py-2 rounded-full font-medium transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-house"></i> <span class="hidden sm:inline">หน้าแรก</span>
+                </button>
+                <button onclick="app.checkAdminAccess()" class="bg-white text-nintendo px-4 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors shadow-playful btn-playful flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield"></i> <span class="hidden sm:inline">ผู้ดูแลระบบ</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 relative">
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white/80 z-50 flex flex-col justify-center items-center hidden">
+            <div class="loader mb-4"></div>
+            <p class="text-nintendo font-medium animate-pulse">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <!-- ================= VIEW: HOME (Grid) ================= -->
+        <section id="view-home" class="view-section active">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-playful font-bold text-gray-800 border-l-4 border-nintendo pl-4">คลังเกมทั้งหมด</h2>
+                <div class="text-sm text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm border border-gray-200">
+                    พบ <span id="home-game-count" class="font-bold text-nintendo">0</span> เกม
+                </div>
+            </div>
+
+            <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Games will be injected here via JS -->
+            </div>
+            
+            <div id="home-empty-state" class="hidden text-center py-20">
+                <i class="fa-solid fa-ghost text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-medium text-gray-500">ยังไม่มีเกมในระบบ</h3>
+            </div>
+        </section>
+
+        <!-- ================= VIEW: DETAIL ================= -->
+        <section id="view-detail" class="view-section max-w-4xl mx-auto">
+            <button onclick="app.navigate('home')" class="mb-6 flex items-center gap-2 text-gray-600 hover:text-nintendo transition-colors font-medium">
+                <i class="fa-solid fa-arrow-left"></i> กลับไปหน้าแรก
+            </button>
+
+            <div class="bg-white rounded-3xl shadow-lg overflow-hidden border-2 border-transparent hover:border-gray-100 transition-colors">
+                <!-- Video Embed -->
+                <div class="aspect-video bg-black relative" id="detail-video-container">
+                    <!-- Iframe will be injected here -->
+                </div>
+
+                <div class="p-6 md:p-8">
+                    <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+                        <div>
+                            <span id="detail-genre" class="inline-block px-3 py-1 bg-red-100 text-nintendo text-sm font-semibold rounded-full mb-2"></span>
+                            <h2 id="detail-title" class="text-3xl md:text-4xl font-playful font-bold text-gray-800"></h2>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="text-gray-500 text-sm flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg w-full md:w-auto">
+                                <i class="fa-regular fa-calendar w-5 text-center"></i>
+                                <span>วางจำหน่าย: <strong id="detail-date" class="text-gray-700"></strong></span>
+                            </div>
+                            <div class="text-gray-500 text-sm flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg w-full md:w-auto">
+                                <i class="fa-solid fa-users w-5 text-center"></i>
+                                <span>จำนวนผู้เล่น: <strong id="detail-players" class="text-gray-700"></strong></span>
+                            </div>
+                            <div class="text-gray-500 text-sm flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg w-full md:w-auto">
+                                <i class="fa-solid fa-language w-5 text-center"></i>
+                                <span>ภาษาที่รองรับ: <strong id="detail-languages" class="text-gray-700"></strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prose max-w-none text-gray-600 leading-relaxed">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2 border-b pb-2">รายละเอียดเกม</h3>
+                        <p id="detail-description" class="whitespace-pre-line"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= VIEW: LOGIN ================= -->
+        <section id="view-login" class="view-section max-w-md mx-auto mt-10">
+            <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-nintendo">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-red-100 text-nintendo rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <h2 class="text-2xl font-playful font-bold text-gray-800">Admin Login</h2>
+                    <p class="text-gray-500 text-sm mt-1">เข้าสู่ระบบเพื่อจัดการข้อมูล</p>
+                </div>
+
+                <form id="login-form" onsubmit="app.handleLogin(event)">
+                    <div class="mb-5">
+                        <label class="block text-gray-700 font-medium mb-2" for="username">Username</label>
+                        <input type="text" id="username" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" placeholder="ป้อน Username" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 font-medium mb-2" for="password">Password</label>
+                        <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" placeholder="ป้อน Password" required>
+                    </div>
+                    <button type="submit" class="w-full bg-nintendo text-white font-bold py-3 px-4 rounded-xl shadow-playful btn-playful hover:bg-nintendo-dark">
+                        เข้าสู่ระบบ
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= VIEW: ADMIN DASHBOARD ================= -->
+        <section id="view-admin" class="view-section">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                <div>
+                    <h2 class="text-3xl font-playful font-bold text-gray-800 flex items-center gap-3">
+                        <i class="fa-solid fa-database text-nintendo"></i> จัดการข้อมูลเกม
+                    </h2>
+                    <p class="text-gray-500 mt-1">เชื่อมต่อกับ Google Sheets อัตโนมัติ</p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="app.showConfig()" class="bg-gray-800 text-white px-5 py-2.5 rounded-xl font-medium shadow-playful btn-playful hover:bg-gray-700 flex items-center gap-2">
+                        <i class="fa-solid fa-gear"></i> ตั้งค่า API
+                    </button>
+                    <button onclick="app.openGameForm()" class="bg-nintendo text-white px-5 py-2.5 rounded-xl font-medium shadow-playful btn-playful hover:bg-nintendo-dark flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> เพิ่มเกมใหม่
+                    </button>
+                    <button onclick="app.logout()" class="bg-white text-gray-600 border border-gray-300 px-4 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 font-medium">
+                                <th class="p-4 w-16 text-center">ภาพ</th>
+                                <th class="p-4">ชื่อเกม</th>
+                                <th class="p-4 w-32">ประเภท</th>
+                                <th class="p-4 w-32">วันจำหน่าย</th>
+                                <th class="p-4 w-32 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-gray-100">
+                            <!-- Table rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="admin-empty-state" class="hidden text-center py-12">
+                    <p class="text-gray-500">ไม่มีข้อมูลเกม กดปุ่ม "เพิ่มเกมใหม่" เพื่อเริ่มต้น</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="container mx-auto px-4 py-6 text-center text-gray-500 text-sm">
+            <p>&copy; 2026 My Playground | Nintendo Switch Library Concept</p>
+            <p class="mt-1">Designed with <i class="fa-solid fa-heart text-nintendo mx-1"></i> Playful Theme</p>
+        </div>
+    </footer>
+
+    <!-- ================= MODAL: ADD/EDIT GAME ================= -->
+    <div id="modal-game" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-[fadeIn_0.3s_ease-out]">
+            
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl">
+                <h3 id="modal-title" class="text-2xl font-playful font-bold text-gray-800">เพิ่มเกมใหม่</h3>
+                <button onclick="app.closeGameForm()" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-grow">
+                <form id="game-form" onsubmit="app.handleGameSubmit(event)">
+                    <input type="hidden" id="form-id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">ชื่อเกม <span class="text-red-500">*</span></label>
+                            <input type="text" id="form-title" required class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">ประเภท (Genre) <span class="text-red-500">*</span></label>
+                            <input type="text" id="form-genre" required placeholder="เช่น RPG, Action, Family" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-gray-700 font-medium mb-1">URL รูปปก <span class="text-red-500">*</span></label>
+                        <input type="url" id="form-cover" required placeholder="https://..." class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                        <p class="text-xs text-gray-400 mt-1">แนะนำรูปแนวตั้ง (Portrait) สัดส่วนประมาณ 2:3</p>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-gray-700 font-medium mb-1">URL วิดีโอ YouTube (Trailer)</label>
+                        <input type="url" id="form-video" placeholder="https://www.youtube.com/watch?v=..." class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-gray-700 font-medium mb-1">วันที่วางจำหน่าย</label>
+                        <input type="date" id="form-date" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">จำนวนผู้เล่น</label>
+                            <input type="text" id="form-players" placeholder="เช่น 1, 1-4 คน, สูงสุด 8 คน" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">ภาษาที่รองรับ</label>
+                            <input type="text" id="form-languages" placeholder="เช่น EN, TH, JP" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-gray-700 font-medium mb-1">รายละเอียดเกม</label>
+                        <textarea id="form-description" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none resize-none"></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button type="button" onclick="app.closeGameForm()" class="px-5 py-2.5 rounded-xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                            ยกเลิก
+                        </button>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl font-medium text-white bg-nintendo shadow-playful btn-playful hover:bg-nintendo-dark">
+                            บันทึกข้อมูล
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        const app = {
+            // State
+            state: {
+                games: [],
+                currentView: 'home',
+                isLoggedIn: false,
+                // ตั้งค่า GAS URL เป็นค่าเริ่มต้น หากไม่มีใน localStorage
+                gasUrl: localStorage.getItem('PLAYGROUND_GAS_URL') || 'https://script.google.com/macros/s/AKfycbwNOjbOe7TuLd9j7ZdHD2K9myu_ArrFJx65Yc-QfJ_umjuVKN2VfPR7k-d9hFDEHMDh/exec',
+                isAdmin: false // true if logged in successfully
+            },
+
+            // Mock Data for Demo (If no GAS URL provided)
+            mockData: [
+                {
+                    id: "1", title: "The Legend of Zelda: Breath of the Wild", genre: "Action RPG",
+                    description: "ออกสำรวจโลกกว้างสุดลูกหูลูกตาในดินแดน Hyrule เพื่อกอบกู้อาณาจักร",
+                    cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000000025/7137262b5a64d6f60ceb08d8e5e1a34114ea022416f082e663da67160ba10c2c",
+                    video_url: "https://www.youtube.com/watch?v=zw47_q9wbBE", release_date: "2017-03-03",
+                    players: "1 คน", languages: "EN, JP"
+                },
+                {
+                    id: "2", title: "Super Mario Odyssey", genre: "Platformer",
+                    description: "ผจญภัยไปกับมาริโอ้และหมวกวิเศษ Cappy รอบโลกเพื่อช่วยเจ้าหญิงพีช",
+                    cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000001130/c42553b4fd0312c31e70ec7468c6c9bccd739f340152925b9600631f2d29f8b5",
+                    video_url: "https://www.youtube.com/watch?v=wGQHQc_3ycE", release_date: "2017-10-27",
+                    players: "1-2 คน", languages: "EN, JP, TH"
+                },
+                {
+                    id: "3", title: "Animal Crossing: New Horizons", genre: "Simulation",
+                    description: "สร้างชีวิตใหม่บนเกาะร้าง ตกแต่งบ้าน และผูกมิตรกับเหล่าสัตว์น่ารัก",
+                    cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000027619/9989957eae3a6b545194c42fec208d622628285e683f234bfdf708dcdd2ddb7c",
+                    video_url: "https://www.youtube.com/watch?v=_3YNL0OWio0", release_date: "2020-03-20",
+                    players: "1-8 คน", languages: "EN, JP"
+                }
+            ],
+
+            // 1. Core Functions & Routing
+            init() {
+                // Initialize app
+                if(sessionStorage.getItem('isAdminLoggedIn') === 'true') {
+                    this.state.isAdmin = true;
+                }
+                
+                this.loadGames();
+            },
+
+            navigate(viewId) {
+                // Hide all views
+                document.querySelectorAll('.view-section').forEach(el => {
+                    el.classList.remove('active');
+                });
+                
+                // Show target view
+                document.getElementById(`view-${viewId}`).classList.add('active');
+                this.state.currentView = viewId;
+
+                // Smooth scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            showLoading(show) {
+                const overlay = document.getElementById('loading-overlay');
+                if(show) overlay.classList.remove('hidden');
+                else overlay.classList.add('hidden');
+            },
+
+            // 2. API Communication
+            async loadGames() {
+                this.showLoading(true);
+                
+                try {
+                    if (this.state.gasUrl) {
+                        // Fetch from Real GAS API
+                        const response = await fetch(`${this.state.gasUrl}?action=getGames`);
+                        const result = await response.json();
+                        if(result.status === 'success') {
+                            this.state.games = result.data;
+                        } else {
+                            throw new Error(result.message);
+                        }
+                    } else {
+                        // Use Mock Data (Simulate network delay)
+                        await new Promise(r => setTimeout(r, 800));
+                        this.state.games = [...this.mockData];
+                    }
+                    
+                    this.renderHomeGrid();
+                    if(this.state.currentView === 'admin') this.renderAdminTable();
+                    
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'โหลดข้อมูลไม่สำเร็จ',
+                        text: error.message || 'กรุณาตรวจสอบ GAS URL หรือการเชื่อมต่ออินเทอร์เน็ต',
+                        confirmButtonColor: '#E60012'
+                    });
+                } finally {
+                    this.showLoading(false);
+                }
+            },
+
+            async apiPost(action, payload) {
+                if (!this.state.gasUrl) {
+                    // Mock API Mode
+                    await new Promise(r => setTimeout(r, 600));
+                    if(action === 'addGame') {
+                        payload.id = Date.now().toString();
+                        this.mockData.push(payload);
+                    } else if (action === 'updateGame') {
+                        const index = this.mockData.findIndex(g => g.id === payload.id);
+                        if(index > -1) this.mockData[index] = payload;
+                    } else if (action === 'deleteGame') {
+                        this.mockData = this.mockData.filter(g => g.id !== payload.id);
+                    }
+                    this.state.games = [...this.mockData];
+                    return { status: 'success' };
+                }
+
+                // Real GAS API
+                const response = await fetch(this.state.gasUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({ action, payload })
+                });
+                return await response.json();
+            },
+
+            // 3. UI Rendering
+            renderHomeGrid() {
+                const container = document.getElementById('game-grid');
+                const emptyState = document.getElementById('home-empty-state');
+                const countEl = document.getElementById('home-game-count');
+                
+                container.innerHTML = '';
+                countEl.textContent = this.state.games.length;
+
+                if (this.state.games.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                
+                emptyState.classList.add('hidden');
+
+                this.state.games.forEach(game => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-2xl overflow-hidden border-2 border-gray-100 card-hover cursor-pointer group flex flex-col h-full';
+                    card.onclick = () => this.showDetail(game.id);
+                    
+                    card.innerHTML = `
+                        <div class="relative pt-[120%] bg-gray-100 overflow-hidden">
+                            <img src="${game.cover_image}" alt="${game.title}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/400x600?text=No+Image'">
+                            <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-nintendo shadow-sm">
+                                ${game.genre || 'Game'}
+                            </div>
+                        </div>
+                        <div class="p-4 flex-grow flex flex-col justify-between">
+                            <h3 class="font-bold text-gray-800 line-clamp-2 leading-tight group-hover:text-nintendo transition-colors">${game.title}</h3>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            showDetail(id) {
+                const game = this.state.games.find(g => g.id === id);
+                if(!game) return;
+
+                document.getElementById('detail-title').textContent = game.title;
+                document.getElementById('detail-genre').textContent = game.genre;
+                document.getElementById('detail-date').textContent = game.release_date || 'ไม่ระบุ';
+                document.getElementById('detail-players').textContent = game.players || 'ไม่ระบุ';
+                document.getElementById('detail-languages').textContent = game.languages || 'ไม่ระบุ';
+                document.getElementById('detail-description').textContent = game.description;
+
+                // Handle YouTube Embed
+                const videoContainer = document.getElementById('detail-video-container');
+                const ytId = this.extractYouTubeId(game.video_url);
+                
+                if (ytId) {
+                    videoContainer.innerHTML = `<iframe class="absolute inset-0 w-full h-full" src="https://www.youtube.com/embed/${ytId}?autoplay=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                } else {
+                    videoContainer.innerHTML = `
+                        <img src="${game.cover_image}" class="absolute inset-0 w-full h-full object-cover" onerror="this.src='https://placehold.co/800x450?text=No+Video'">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span class="text-white/70 font-medium"><i class="fa-solid fa-video-slash mb-2 block text-3xl text-center"></i>ไม่มีวิดีโอตัวอย่าง</span>
+                        </div>
+                    `;
+                }
+
+                this.navigate('detail');
+            },
+
+            renderAdminTable() {
+                const tbody = document.getElementById('admin-table-body');
+                const emptyState = document.getElementById('admin-empty-state');
+                
+                tbody.innerHTML = '';
+
+                if (this.state.games.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                emptyState.classList.add('hidden');
+
+                this.state.games.forEach(game => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-red-50/50 transition-colors group';
+                    
+                    tr.innerHTML = `
+                        <td class="p-3 text-center">
+                            <img src="${game.cover_image}" class="w-12 h-16 object-cover rounded shadow-sm mx-auto" onerror="this.src='https://placehold.co/50x70?text=Img'">
+                        </td>
+                        <td class="p-3">
+                            <div class="font-medium text-gray-800 line-clamp-1">${game.title}</div>
+                        </td>
+                        <td class="p-3 text-sm text-gray-600">${game.genre}</td>
+                        <td class="p-3 text-sm text-gray-600">${game.release_date || '-'}</td>
+                        <td class="p-3 text-center">
+                            <div class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="app.editGame('${game.id}')" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไข">
+                                    <i class="fa-solid fa-pen text-sm"></i>
+                                </button>
+                                <button onclick="app.deleteGame('${game.id}')" class="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors" title="ลบ">
+                                    <i class="fa-solid fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            // 4. Admin Auth
+            checkAdminAccess() {
+                if (this.state.isAdmin) {
+                    this.navigate('admin');
+                    this.renderAdminTable();
+                } else {
+                    this.navigate('login');
+                }
+            },
+
+            handleLogin(e) {
+                e.preventDefault();
+                const user = document.getElementById('username').value;
+                const pass = document.getElementById('password').value;
+
+                // Requirements: khajondech / admin0100
+                if (user === 'khajondech' && pass === 'admin0100') {
+                    this.state.isAdmin = true;
+                    sessionStorage.setItem('isAdminLoggedIn', 'true');
+                    document.getElementById('login-form').reset();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'เข้าสู่ระบบสำเร็จ',
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        this.checkAdminAccess();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'เข้าสู่ระบบล้มเหลว',
+                        text: 'Username หรือ Password ไม่ถูกต้อง',
+                        confirmButtonColor: '#E60012'
+                    });
+                }
+            },
+
+            logout() {
+                this.state.isAdmin = false;
+                sessionStorage.removeItem('isAdminLoggedIn');
+                this.navigate('home');
+            },
+
+            // 5. Admin CRUD Forms
+            openGameForm(game = null) {
+                const modal = document.getElementById('modal-game');
+                const form = document.getElementById('game-form');
+                
+                form.reset();
+                
+                if (game) {
+                    document.getElementById('modal-title').textContent = 'แก้ไขข้อมูลเกม';
+                    document.getElementById('form-id').value = game.id;
+                    document.getElementById('form-title').value = game.title;
+                    document.getElementById('form-genre').value = game.genre;
+                    document.getElementById('form-cover').value = game.cover_image;
+                    document.getElementById('form-video').value = game.video_url || '';
+                    document.getElementById('form-date').value = game.release_date || '';
+                    document.getElementById('form-players').value = game.players || '';
+                    document.getElementById('form-languages').value = game.languages || '';
+                    document.getElementById('form-description').value = game.description || '';
+                } else {
+                    document.getElementById('modal-title').textContent = 'เพิ่มเกมใหม่';
+                    document.getElementById('form-id').value = '';
+                }
+                
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent body scroll
+            },
+
+            closeGameForm() {
+                document.getElementById('modal-game').classList.add('hidden');
+                document.body.style.overflow = '';
+            },
+
+            async handleGameSubmit(e) {
+                e.preventDefault();
+                
+                const id = document.getElementById('form-id').value;
+                const payload = {
+                    title: document.getElementById('form-title').value,
+                    genre: document.getElementById('form-genre').value,
+                    cover_image: document.getElementById('form-cover').value,
+                    video_url: document.getElementById('form-video').value,
+                    release_date: document.getElementById('form-date').value,
+                    players: document.getElementById('form-players').value,
+                    languages: document.getElementById('form-languages').value,
+                    description: document.getElementById('form-description').value,
+                };
+
+                const action = id ? 'updateGame' : 'addGame';
+                if(id) payload.id = id;
+
+                this.closeGameForm();
+                this.showLoading(true);
+
+                try {
+                    const result = await this.apiPost(action, payload);
+                    if (result.status === 'success') {
+                        await this.loadGames(); // Refresh list
+                        Swal.fire({
+                            icon: 'success',
+                            title: id ? 'อัปเดตข้อมูลสำเร็จ' : 'เพิ่มเกมใหม่สำเร็จ',
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'เกิดข้อผิดพลาด',
+                        text: error.message,
+                        confirmButtonColor: '#E60012'
+                    });
+                } finally {
+                    this.showLoading(false);
+                }
+            },
+
+            editGame(id) {
+                const game = this.state.games.find(g => g.id === id);
+                if(game) this.openGameForm(game);
+            },
+
+            deleteGame(id) {
+                Swal.fire({
+                    title: 'ยืนยันการลบข้อมูล?',
+                    text: "การกระทำนี้ไม่สามารถย้อนกลับได้!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#E60012',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'ใช่, ลบเลย!',
+                    cancelButtonText: 'ยกเลิก'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        this.showLoading(true);
+                        try {
+                            const res = await this.apiPost('deleteGame', { id });
+                            if (res.status === 'success') {
+                                await this.loadGames();
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'ลบข้อมูลสำเร็จ',
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                });
+                            } else {
+                                throw new Error(res.message);
+                            }
+                        } catch (error) {
+                            Swal.fire('Error', error.message, 'error');
+                        } finally {
+                            this.showLoading(false);
+                        }
+                    }
+                });
+            },
+
+            // 6. Settings
+            showConfig() {
+                Swal.fire({
+                    title: 'ตั้งค่าการเชื่อมต่อ API',
+                    html: `
+                        <div class="text-left mt-2 text-sm text-gray-500 mb-2">
+                            ใส่ Web App URL ที่ได้จาก Google Apps Script<br>
+                            *(หากปล่อยว่าง ระบบจะใช้ Mock Data สำหรับทดสอบ)*
+                        </div>
+                        <input id="swal-gas-input" class="swal2-input w-full mx-0" placeholder="https://script.google.com/macros/s/.../exec" value="${this.state.gasUrl}">
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'บันทึก',
+                    cancelButtonText: 'ยกเลิก',
+                    confirmButtonColor: '#E60012',
+                    preConfirm: () => {
+                        return document.getElementById('swal-gas-input').value;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const url = result.value.trim();
+                        this.state.gasUrl = url;
+                        if (url) {
+                            localStorage.setItem('PLAYGROUND_GAS_URL', url);
+                        } else {
+                            localStorage.removeItem('PLAYGROUND_GAS_URL');
+                        }
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'บันทึกการตั้งค่าสำเร็จ',
+                            showConfirmButton: false,
+                            timer: 1500
+                        }).then(() => {
+                            this.loadGames(); // Reload data with new URL
+                        });
+                    }
+                });
+            },
+
+            // 7. Utils
+            extractYouTubeId(url) {
+                if (!url) return null;
+                const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[7].length == 11) ? match[7] : null;
+            }
+        };
+
+        // Run app on load
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
