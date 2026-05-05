@@ -112,6 +112,42 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Mario Toggle Switch */
+        .mario-toggle-label {
+            width: 64px;
+            height: 32px;
+            background-color: #fca5a5; /* Light red */
+            border-radius: 9999px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .mario-toggle-input:checked + .mario-toggle-label {
+            background-color: #86efac; /* Light green */
+        }
+        .mario-toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 28px;
+            height: 28px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background-size: 80%;
+            background-position: center;
+            background-repeat: no-repeat;
+            /* Red mushroom (Offline) */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23E60012' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E");
+        }
+        .mario-toggle-input:checked + .mario-toggle-label .mario-toggle-knob {
+            transform: translateX(32px);
+            /* Green mushroom (Online) */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%2343b047' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E");
+        }
     </style>
 </head>
 <body class="text-gray-800 antialiased min-h-screen flex flex-col">
@@ -212,6 +248,9 @@
                                 <i class="fa-solid fa-language w-5 text-center"></i>
                                 <span>ภาษาที่รองรับ: <strong id="detail-languages" class="text-gray-700"></strong></span>
                             </div>
+                            <div class="text-sm flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg w-full md:w-auto" id="detail-status-container">
+                                <!-- Status injected via JS -->
+                            </div>
                         </div>
                     </div>
 
@@ -285,6 +324,7 @@
                                 <th class="p-4">ชื่อเกม</th>
                                 <th class="p-4 w-48">ประเภท</th>
                                 <th class="p-4 w-32">วันจำหน่าย</th>
+                                <th class="p-4 w-24 text-center">สถานะ</th>
                                 <th class="p-4 w-32 text-center">จัดการ</th>
                             </tr>
                         </thead>
@@ -372,6 +412,19 @@
                         <textarea id="form-description" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none resize-none"></textarea>
                     </div>
 
+                    <div class="mb-5 flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">สถานะระบบ (Online/Offline)</label>
+                            <p class="text-xs text-gray-500">เปิดสวิตช์เพื่อให้เกมนี้แสดงสถานะเป็น Online (เห็ดเขียว)</p>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="form-is-online" class="hidden mario-toggle-input" checked>
+                            <label for="form-is-online" class="mario-toggle-label block">
+                                <div class="mario-toggle-knob"></div>
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
                         <button type="button" onclick="app.closeGameForm()" class="px-5 py-2.5 rounded-xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                             ยกเลิก
@@ -406,21 +459,21 @@
                     description: "ออกสำรวจโลกกว้างสุดลูกหูลูกตาในดินแดน Hyrule เพื่อกอบกู้อาณาจักร",
                     cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000000025/7137262b5a64d6f60ceb08d8e5e1a34114ea022416f082e663da67160ba10c2c",
                     video_url: "https://www.youtube.com/watch?v=zw47_q9wbBE", release_date: "2017-03-03",
-                    players: "1 คน", languages: "EN, JP"
+                    players: "1 คน", languages: "EN, JP", is_online: true
                 },
                 {
                     id: "2", title: "Super Mario Odyssey", genre: "Platformer",
                     description: "ผจญภัยไปกับมาริโอ้และหมวกวิเศษ Cappy รอบโลกเพื่อช่วยเจ้าหญิงพีช",
                     cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000001130/c42553b4fd0312c31e70ec7468c6c9bccd739f340152925b9600631f2d29f8b5",
                     video_url: "https://www.youtube.com/watch?v=wGQHQc_3ycE", release_date: "2017-10-27",
-                    players: "1-2 คน", languages: "EN, JP, TH"
+                    players: "1-2 คน", languages: "EN, JP, TH", is_online: true
                 },
                 {
                     id: "3", title: "Animal Crossing: New Horizons", genre: "Simulation",
                     description: "สร้างชีวิตใหม่บนเกาะร้าง ตกแต่งบ้าน และผูกมิตรกับเหล่าสัตว์น่ารัก",
                     cover_image: "https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_801/b_white/f_auto/q_auto/ncom/software/switch/70010000027619/9989957eae3a6b545194c42fec208d622628285e683f234bfdf708dcdd2ddb7c",
                     video_url: "https://www.youtube.com/watch?v=_3YNL0OWio0", release_date: "2020-03-20",
-                    players: "1-8 คน", languages: "EN, JP"
+                    players: "1-8 คน", languages: "EN, JP", is_online: false
                 }
             ],
 
@@ -571,12 +624,18 @@
                     card.className = 'bg-white rounded-2xl overflow-hidden border-2 border-gray-100 card-hover cursor-pointer group flex flex-col h-full';
                     card.onclick = () => this.showDetail(game.id);
                     
+                    const isOnline = game.is_online !== false && game.is_online !== 'false';
+                    const statusBadge = isOnline 
+                        ? `<div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-600 shadow-sm flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Online</div>`
+                        : `<div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-red-500 shadow-sm flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-red-500"></div> Offline</div>`;
+                    
                     card.innerHTML = `
                         <div class="relative pt-[120%] bg-gray-100 overflow-hidden">
                             <img src="${game.cover_image}" alt="${game.title}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/400x600?text=No+Image'">
                             <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-nintendo shadow-sm">
                                 ${game.genre || 'Game'}
                             </div>
+                            ${statusBadge}
                         </div>
                         <div class="p-4 flex-grow flex flex-col justify-between">
                             <h3 class="font-bold text-gray-800 line-clamp-2 leading-tight group-hover:text-nintendo transition-colors">${game.title}</h3>
@@ -596,6 +655,15 @@
                 document.getElementById('detail-players').textContent = game.players || 'ไม่ระบุ';
                 document.getElementById('detail-languages').textContent = game.languages || 'ไม่ระบุ';
                 document.getElementById('detail-description').textContent = game.description;
+
+                // Render Status indicator
+                const statusContainer = document.getElementById('detail-status-container');
+                const isOnline = game.is_online !== false && game.is_online !== 'false';
+                if (isOnline) {
+                    statusContainer.innerHTML = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%2343b047' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E" class="w-5 h-5"> <span class="text-green-600 font-bold">Online</span>`;
+                } else {
+                    statusContainer.innerHTML = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23E60012' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E" class="w-5 h-5"> <span class="text-red-500 font-bold">Offline</span>`;
+                }
 
                 // Handle YouTube Embed
                 const videoContainer = document.getElementById('detail-video-container');
@@ -648,6 +716,11 @@
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-red-50/50 transition-colors group';
                     
+                    const isOnline = game.is_online !== false && game.is_online !== 'false';
+                    const statusIcon = isOnline 
+                        ? `<div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mx-auto shadow-sm border border-green-200" title="Online"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%2343b047' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E" class="w-5 h-5"></div>`
+                        : `<div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mx-auto shadow-sm border border-red-200" title="Offline"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23E60012' d='M10 55 c 0 -50 80 -50 80 0 z'/%3E%3Crect x='25' y='55' width='50' height='35' rx='15' fill='%23fbd8b4'/%3E%3Ccircle cx='50' cy='30' r='14' fill='%23fff'/%3E%3Ccircle cx='20' cy='45' r='10' fill='%23fff'/%3E%3Ccircle cx='80' cy='45' r='10' fill='%23fff'/%3E%3Crect x='40' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3Crect x='54' y='65' width='6' height='15' rx='3' fill='%23000'/%3E%3C/svg%3E" class="w-5 h-5"></div>`;
+
                     tr.innerHTML = `
                         <td class="p-3 text-center">
                             <img src="${game.cover_image}" class="w-12 h-16 object-cover rounded shadow-sm mx-auto" onerror="this.src='https://placehold.co/50x70?text=Img'">
@@ -657,6 +730,7 @@
                         </td>
                         <td class="p-3 text-sm text-gray-600">${game.genre}</td>
                         <td class="p-3 text-sm text-gray-600">${app.formatDate(game.release_date) || '-'}</td>
+                        <td class="p-3 text-center">${statusIcon}</td>
                         <td class="p-3 text-center">
                             <div class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onclick="app.editGame('${game.id}')" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไข">
@@ -754,9 +828,11 @@
                     document.getElementById('form-players').value = game.players || '';
                     document.getElementById('form-languages').value = game.languages || '';
                     document.getElementById('form-description').value = game.description || '';
+                    document.getElementById('form-is-online').checked = game.is_online !== false && game.is_online !== 'false';
                 } else {
                     document.getElementById('modal-title').textContent = 'เพิ่มเกมใหม่';
                     document.getElementById('form-id').value = '';
+                    document.getElementById('form-is-online').checked = true; // ค่าเริ่มต้นเป็น Online
                 }
                 
                 modal.classList.remove('hidden');
@@ -781,6 +857,7 @@
                     players: document.getElementById('form-players').value,
                     languages: document.getElementById('form-languages').value,
                     description: document.getElementById('form-description').value,
+                    is_online: document.getElementById('form-is-online').checked
                 };
 
                 const action = id ? 'updateGame' : 'addGame';
