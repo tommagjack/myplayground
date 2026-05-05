@@ -233,21 +233,39 @@
             </div>
 
             <!-- Search & Filter Bar -->
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row gap-4">
-                <div class="relative flex-grow">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col lg:flex-row gap-4 items-center">
+                <div class="relative flex-grow w-full">
                     <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="text" id="search-title" placeholder="ค้นหาชื่อเกม..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" onkeyup="app.filterGames()">
                 </div>
-                <div class="relative w-full sm:w-64 flex-shrink-0">
+                <div class="relative w-full lg:w-64 flex-shrink-0">
                     <i class="fa-solid fa-filter absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input list="genre-list" id="search-genre" placeholder="เลือกหรือพิมพ์แนวเกม..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" onkeyup="app.filterGames()" onchange="app.filterGames()">
                     <datalist id="genre-list">
                         <!-- Options injected by JS -->
                     </datalist>
                 </div>
-                <button onclick="app.loadGames()" class="bg-gray-100 text-gray-700 border border-gray-300 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 flex-shrink-0 shadow-sm btn-playful" title="รีเฟรชข้อมูล">
-                    <i class="fa-solid fa-rotate-right"></i> <span class="hidden sm:inline">รีเฟรช</span>
-                </button>
+                
+                <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end flex-wrap sm:flex-nowrap">
+                    <!-- Status Filter Toggle -->
+                    <div class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 flex-shrink-0">
+                        <label class="flex items-center gap-1.5 text-sm text-gray-600 font-medium cursor-pointer border-r border-gray-300 pr-3 mr-1">
+                            <input type="checkbox" id="filter-all-status" checked onchange="app.filterGames()" class="accent-nintendo w-4 h-4 cursor-pointer">
+                            ทั้งหมด
+                        </label>
+                        <span id="status-filter-text" class="text-sm font-bold text-gray-400 w-14 text-right transition-colors">Online</span>
+                        <div class="opacity-50 pointer-events-none transition-opacity" id="status-toggle-wrapper">
+                            <input type="checkbox" id="filter-status" class="hidden mario-toggle-input" checked onchange="app.filterGames()">
+                            <label for="filter-status" class="mario-toggle-label block" style="margin-bottom: 0;">
+                                <div class="mario-toggle-knob"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="app.loadGames()" class="bg-gray-100 text-gray-700 border border-gray-300 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 flex-shrink-0 shadow-sm btn-playful" title="รีเฟรชข้อมูล">
+                        <i class="fa-solid fa-rotate-right"></i> <span class="hidden sm:inline">รีเฟรช</span>
+                    </button>
+                </div>
             </div>
 
             <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -643,10 +661,46 @@
                 const titleQuery = document.getElementById('search-title').value.toLowerCase();
                 const genreQuery = document.getElementById('search-genre').value.toLowerCase();
                 
+                // Status Filter Check
+                const showAllStatus = document.getElementById('filter-all-status');
+                const statusToggle = document.getElementById('filter-status');
+                const statusWrapper = document.getElementById('status-toggle-wrapper');
+                const statusText = document.getElementById('status-filter-text');
+                
+                let isAll = true;
+                let isOnlineFilter = true;
+
+                if (showAllStatus && statusToggle) {
+                    isAll = showAllStatus.checked;
+                    isOnlineFilter = statusToggle.checked;
+                    
+                    if (isAll) {
+                        statusWrapper.classList.add('opacity-50', 'pointer-events-none');
+                        statusText.className = 'text-sm font-bold text-gray-400 w-14 text-right';
+                        statusText.textContent = isOnlineFilter ? 'Online' : 'Offline';
+                    } else {
+                        statusWrapper.classList.remove('opacity-50', 'pointer-events-none');
+                        if (isOnlineFilter) {
+                            statusText.textContent = 'Online';
+                            statusText.className = 'text-sm font-bold text-green-600 w-14 text-right';
+                        } else {
+                            statusText.textContent = 'Offline';
+                            statusText.className = 'text-sm font-bold text-red-500 w-14 text-right';
+                        }
+                    }
+                }
+                
                 const filtered = this.state.games.filter(game => {
                     const matchTitle = (game.title || '').toLowerCase().includes(titleQuery);
                     const matchGenre = (game.genre || '').toLowerCase().includes(genreQuery);
-                    return matchTitle && matchGenre;
+                    
+                    const gameIsOnline = game.is_online !== false && game.is_online !== 'false';
+                    let matchStatus = true;
+                    if (!isAll) {
+                        matchStatus = (gameIsOnline === isOnlineFilter);
+                    }
+                    
+                    return matchTitle && matchGenre && matchStatus;
                 });
                 
                 this.renderHomeGrid(filtered);
