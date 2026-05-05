@@ -99,18 +99,43 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #E60012;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+        /* Joy-Con Loader Animation */
+        .joycon-loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
+        .joycon-icon {
+            width: 80px;
+            animation: float 1.5s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .loading-dots {
+            display: flex;
+            gap: 10px;
+        }
+        .loading-dot {
+            width: 12px;
+            height: 12px;
+            background-color: #E60012;
+            border-radius: 50%;
+            opacity: 0.2;
+            animation: dotLightUp 1.2s infinite ease-in-out;
+        }
+        .loading-dot:nth-child(1) { animation-delay: 0.0s; }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        .loading-dot:nth-child(4) { animation-delay: 0.6s; }
+        .loading-dot:nth-child(5) { animation-delay: 0.8s; }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes dotLightUp {
+            0% { opacity: 0.2; transform: scale(1); box-shadow: none; }
+            30% { opacity: 1; transform: scale(1.3); box-shadow: 0 0 10px rgba(230,0,18,0.6); }
+            100% { opacity: 0.2; transform: scale(1); box-shadow: none; }
         }
 
         /* Mario Toggle Switch */
@@ -175,9 +200,27 @@
     <main class="flex-grow container mx-auto px-4 py-8 relative">
         
         <!-- Loading Overlay -->
-        <div id="loading-overlay" class="fixed inset-0 bg-white/80 z-50 flex flex-col justify-center items-center hidden">
-            <div class="loader mb-4"></div>
-            <p class="text-nintendo font-medium animate-pulse">กำลังโหลดข้อมูล...</p>
+        <div id="loading-overlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col justify-center items-center hidden">
+            <div class="joycon-loader-container mb-6">
+                <!-- Red Joy-Con SVG -->
+                <svg class="joycon-icon drop-shadow-lg" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="5" width="90" height="50" rx="25" fill="#E60012"/>
+                    <path d="M 22 26 L 28 26 L 28 20 L 33 20 L 33 26 L 39 26 L 39 31 L 33 31 L 33 37 L 28 37 L 28 31 L 22 31 Z" fill="#fff"/>
+                    <circle cx="68" cy="20" r="4.5" fill="#fff"/>
+                    <circle cx="78" cy="30" r="4.5" fill="#fff"/>
+                    <circle cx="68" cy="40" r="4.5" fill="#fff"/>
+                    <circle cx="58" cy="30" r="4.5" fill="#fff"/>
+                </svg>
+                <!-- 5 Dots Animation -->
+                <div class="loading-dots">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            </div>
+            <p id="loading-text" class="text-nintendo font-playful font-bold text-xl tracking-wide animate-pulse">กำลังดำเนินการ...</p>
         </div>
 
         <!-- ================= VIEW: HOME (Grid) ================= -->
@@ -501,15 +544,20 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             },
 
-            showLoading(show) {
+            showLoading(show, text = 'กำลังดำเนินการ...') {
                 const overlay = document.getElementById('loading-overlay');
-                if(show) overlay.classList.remove('hidden');
-                else overlay.classList.add('hidden');
+                const textEl = document.getElementById('loading-text');
+                if(show) {
+                    textEl.textContent = text;
+                    overlay.classList.remove('hidden');
+                } else {
+                    overlay.classList.add('hidden');
+                }
             },
 
             // 2. API Communication
             async loadGames() {
-                this.showLoading(true);
+                this.showLoading(true, 'กำลังโหลดข้อมูล...');
                 
                 try {
                     if (this.state.gasUrl) {
@@ -864,7 +912,7 @@
                 if(id) payload.id = id;
 
                 this.closeGameForm();
-                this.showLoading(true);
+                this.showLoading(true, 'กำลังบันทึกข้อมูล...');
 
                 try {
                     const result = await this.apiPost(action, payload);
@@ -889,10 +937,16 @@
                         }
                         
                         Swal.fire({
-                            icon: 'success',
-                            title: id ? 'อัปเดตข้อมูลสำเร็จ' : 'เพิ่มเกมใหม่สำเร็จ',
+                            title: `<span class="font-playful">${id ? 'อัปเดตข้อมูลสำเร็จ' : 'เพิ่มเกมใหม่สำเร็จ'}</span>`,
+                            imageUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60' width='100' height='60'%3E%3Crect x='5' y='5' width='90' height='50' rx='25' fill='%2343b047'/%3E%3Cpath d='M 22 26 L 28 26 L 28 20 L 33 20 L 33 26 L 39 26 L 39 31 L 33 31 L 33 37 L 28 37 L 28 31 L 22 31 Z' fill='%23fff'/%3E%3Ccircle cx='68' cy='20' r='4' fill='%23fff'/%3E%3Ccircle cx='78' cy='30' r='4' fill='%23fff'/%3E%3Ccircle cx='68' cy='40' r='4' fill='%23fff'/%3E%3Ccircle cx='58' cy='30' r='4' fill='%23fff'/%3E%3C/svg%3E",
+                            imageWidth: 100,
+                            imageHeight: 60,
+                            imageAlt: 'Success Joy-Con',
                             showConfirmButton: false,
-                            timer: 1500
+                            timer: 2000,
+                            customClass: {
+                                popup: 'rounded-3xl border-t-8 border-green-500 shadow-2xl'
+                            }
                         });
                     } else {
                         throw new Error(result.message);
@@ -926,7 +980,7 @@
                     cancelButtonText: 'ยกเลิก'
                 }).then(async (result) => {
                     if (result.isConfirmed) {
-                        this.showLoading(true);
+                        this.showLoading(true, 'กำลังลบข้อมูล...');
                         try {
                             const res = await this.apiPost('deleteGame', { id });
                             if (res.status === 'success') {
