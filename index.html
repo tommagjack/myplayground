@@ -166,6 +166,9 @@
                         <!-- Options injected by JS -->
                     </datalist>
                 </div>
+                <button onclick="app.loadGames()" class="bg-gray-100 text-gray-700 border border-gray-300 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 flex-shrink-0 shadow-sm btn-playful" title="รีเฟรชข้อมูล">
+                    <i class="fa-solid fa-rotate-right"></i> <span class="hidden sm:inline">รีเฟรช</span>
+                </button>
             </div>
 
             <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -257,7 +260,10 @@
                     <p class="text-gray-500 mt-1">เชื่อมต่อกับ Google Sheets อัตโนมัติ</p>
                 </div>
                 
-                <div class="flex gap-3">
+                <div class="flex gap-3 flex-wrap justify-center md:justify-end">
+                    <button onclick="app.loadGames()" class="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2 shadow-sm btn-playful" title="รีเฟรชข้อมูล">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
                     <button onclick="app.showConfig()" class="bg-gray-800 text-white px-5 py-2.5 rounded-xl font-medium shadow-playful btn-playful hover:bg-gray-700 flex items-center gap-2">
                         <i class="fa-solid fa-gear"></i> ตั้งค่า API
                     </button>
@@ -299,7 +305,7 @@
     <footer class="bg-white border-t border-gray-200 mt-auto">
         <div class="container mx-auto px-4 py-6 text-center text-gray-500 text-sm">
             <p>&copy; 2026 My Playground | JACKIATOR</p>
-            <p class="mt-1">Designed by <i class="fa-solid fa-heart text-nintendo mx-1"></i> Jack</p>
+            <p class="mt-1">Designed by Jack</p>
         </div>
     </footer>
 
