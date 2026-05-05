@@ -283,7 +283,7 @@
                             <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 font-medium">
                                 <th class="p-4 w-16 text-center">ภาพ</th>
                                 <th class="p-4">ชื่อเกม</th>
-                                <th class="p-4 w-32">ประเภท</th>
+                                <th class="p-4 w-48">ประเภท</th>
                                 <th class="p-4 w-32">วันจำหน่าย</th>
                                 <th class="p-4 w-32 text-center">จัดการ</th>
                             </tr>
@@ -292,6 +292,11 @@
                             <!-- Table rows injected via JS -->
                         </tbody>
                     </table>
+                </div>
+                <!-- Pagination Controls -->
+                <div id="admin-pagination" class="hidden p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center bg-gray-50 rounded-b-2xl gap-3">
+                    <span id="admin-page-info" class="text-sm text-gray-500"></span>
+                    <div class="flex gap-2" id="admin-page-buttons"></div>
                 </div>
                 <div id="admin-empty-state" class="hidden text-center py-12">
                     <p class="text-gray-500">ไม่มีข้อมูลเกม กดปุ่ม "เพิ่มเกมใหม่" เพื่อเริ่มต้น</p>
@@ -390,7 +395,8 @@
                 isLoggedIn: false,
                 // ตั้งค่า GAS URL เป็นค่าเริ่มต้น หากไม่มีใน localStorage
                 gasUrl: localStorage.getItem('PLAYGROUND_GAS_URL') || 'https://script.google.com/macros/s/AKfycbwNOjbOe7TuLd9j7ZdHD2K9myu_ArrFJx65Yc-QfJ_umjuVKN2VfPR7k-d9hFDEHMDh/exec',
-                isAdmin: false // true if logged in successfully
+                isAdmin: false, // true if logged in successfully
+                adminCurrentPage: 1 // สำหรับระบบ Pagination
             },
 
             // Mock Data for Demo (If no GAS URL provided)
@@ -488,8 +494,10 @@
                 if (!this.state.gasUrl) {
                     // Mock API Mode
                     await new Promise(r => setTimeout(r, 600));
+                    let resId = payload.id;
                     if(action === 'addGame') {
-                        payload.id = Date.now().toString();
+                        resId = Date.now().toString();
+                        payload.id = resId;
                         this.mockData.push(payload);
                     } else if (action === 'updateGame') {
                         const index = this.mockData.findIndex(g => g.id === payload.id);
@@ -498,7 +506,7 @@
                         this.mockData = this.mockData.filter(g => g.id !== payload.id);
                     }
                     this.state.games = [...this.mockData];
-                    return { status: 'success' };
+                    return { status: 'success', id: resId };
                 }
 
                 // Real GAS API
@@ -610,16 +618,33 @@
             renderAdminTable() {
                 const tbody = document.getElementById('admin-table-body');
                 const emptyState = document.getElementById('admin-empty-state');
+                const pagination = document.getElementById('admin-pagination');
                 
                 tbody.innerHTML = '';
 
                 if (this.state.games.length === 0) {
                     emptyState.classList.remove('hidden');
+                    pagination.classList.add('hidden');
                     return;
                 }
                 emptyState.classList.add('hidden');
+                pagination.classList.remove('hidden');
 
-                this.state.games.forEach(game => {
+                // 1. เรียงข้อมูลจากใหม่ไปเก่า (Reverse)
+                const sortedGames = [...this.state.games].reverse();
+
+                // 2. Pagination Logic (หน้าละ 10 รายการ)
+                const itemsPerPage = 10;
+                const totalPages = Math.ceil(sortedGames.length / itemsPerPage);
+
+                if (this.state.adminCurrentPage > totalPages) this.state.adminCurrentPage = totalPages;
+                if (this.state.adminCurrentPage < 1) this.state.adminCurrentPage = 1;
+
+                const startIndex = (this.state.adminCurrentPage - 1) * itemsPerPage;
+                const paginatedGames = sortedGames.slice(startIndex, startIndex + itemsPerPage);
+
+                // 3. แสดงผลเฉพาะข้อมูลในหน้านั้นๆ
+                paginatedGames.forEach(game => {
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-red-50/50 transition-colors group';
                     
@@ -645,6 +670,25 @@
                     `;
                     tbody.appendChild(tr);
                 });
+
+                // 4. Render Pagination Controls
+                document.getElementById('admin-page-info').textContent = `หน้า ${this.state.adminCurrentPage} จาก ${totalPages} (รวม ${sortedGames.length} รายการ)`;
+                const pageButtons = document.getElementById('admin-page-buttons');
+                pageButtons.innerHTML = `
+                    <button onclick="app.changeAdminPage(${this.state.adminCurrentPage - 1})" class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors shadow-sm" ${this.state.adminCurrentPage === 1 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-chevron-left"></i> ก่อนหน้า
+                    </button>
+                    <button onclick="app.changeAdminPage(${this.state.adminCurrentPage + 1})" class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors shadow-sm" ${this.state.adminCurrentPage === totalPages ? 'disabled' : ''}>
+                        ถัดไป <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                `;
+            },
+
+            changeAdminPage(page) {
+                this.state.adminCurrentPage = page;
+                this.renderAdminTable();
+                // เลื่อนหน้าจอกลับขึ้นไปบนสุดของตาราง
+                document.getElementById('view-admin').scrollIntoView({ behavior: 'smooth' });
             },
 
             // 4. Admin Auth
@@ -748,7 +792,25 @@
                 try {
                     const result = await this.apiPost(action, payload);
                     if (result.status === 'success') {
-                        await this.loadGames(); // Refresh list
+                        
+                        // อัปเดตข้อมูลในหน้าเว็บทันที (ไม่ต้องรอโหลดใหม่ทั้งหมดจาก GAS) ช่วยลดเวลาโหลดไปได้ครึ่งนึง
+                        if (this.state.gasUrl) {
+                            if (action === 'addGame') {
+                                payload.id = result.id;
+                                this.state.games.push(payload);
+                            } else {
+                                const index = this.state.games.findIndex(g => g.id === payload.id);
+                                if (index > -1) this.state.games[index] = payload;
+                            }
+                        }
+
+                        this.populateGenres();
+                        this.filterGames();
+                        if(this.state.currentView === 'admin') {
+                            this.state.adminCurrentPage = 1; // กลับไปหน้าแรกสุดของตารางเมื่อเพิ่ม/แก้ไขเสร็จ
+                            this.renderAdminTable();
+                        }
+                        
                         Swal.fire({
                             icon: 'success',
                             title: id ? 'อัปเดตข้อมูลสำเร็จ' : 'เพิ่มเกมใหม่สำเร็จ',
@@ -791,7 +853,15 @@
                         try {
                             const res = await this.apiPost('deleteGame', { id });
                             if (res.status === 'success') {
-                                await this.loadGames();
+                                // ลบข้อมูลในหน้าเว็บทันที ช่วยประหยัดเวลาโหลด
+                                if (this.state.gasUrl) {
+                                    this.state.games = this.state.games.filter(g => g.id !== id);
+                                }
+                                
+                                this.populateGenres();
+                                this.filterGames();
+                                if(this.state.currentView === 'admin') this.renderAdminTable();
+
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'ลบข้อมูลสำเร็จ',
