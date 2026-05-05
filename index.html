@@ -153,6 +153,21 @@
                 </div>
             </div>
 
+            <!-- Search & Filter Bar -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row gap-4">
+                <div class="relative flex-grow">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="search-title" placeholder="ค้นหาชื่อเกม..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" onkeyup="app.filterGames()">
+                </div>
+                <div class="relative w-full sm:w-64 flex-shrink-0">
+                    <i class="fa-solid fa-filter absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input list="genre-list" id="search-genre" placeholder="เลือกหรือพิมพ์แนวเกม..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-nintendo focus:ring focus:ring-red-200 outline-none transition-all" onkeyup="app.filterGames()" onchange="app.filterGames()">
+                    <datalist id="genre-list">
+                        <!-- Options injected by JS -->
+                    </datalist>
+                </div>
+            </div>
+
             <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <!-- Games will be injected here via JS -->
             </div>
@@ -283,8 +298,8 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto">
         <div class="container mx-auto px-4 py-6 text-center text-gray-500 text-sm">
-            <p>&copy; 2026 My Playground | Nintendo Switch Library Concept</p>
-            <p class="mt-1">Designed with <i class="fa-solid fa-heart text-nintendo mx-1"></i> Playful Theme</p>
+            <p>&copy; 2026 My Playground | JACKIATOR</p>
+            <p class="mt-1">Designed by <i class="fa-solid fa-heart text-nintendo mx-1"></i> Jack</p>
         </div>
     </footer>
 
@@ -447,7 +462,8 @@
                         this.state.games = [...this.mockData];
                     }
                     
-                    this.renderHomeGrid();
+                    this.populateGenres();
+                    this.filterGames();
                     if(this.state.currentView === 'admin') this.renderAdminTable();
                     
                 } catch (error) {
@@ -488,22 +504,55 @@
             },
 
             // 3. UI Rendering
-            renderHomeGrid() {
+            populateGenres() {
+                const datalist = document.getElementById('genre-list');
+                datalist.innerHTML = '';
+                
+                // ดึงรายการประเภทเกมแบบไม่ซ้ำกันออกมา
+                const genres = new Set();
+                this.state.games.forEach(game => {
+                    if (game.genre) {
+                        genres.add(game.genre.trim());
+                    }
+                });
+                
+                // นำเข้าตัวเลือกใน datalist
+                genres.forEach(genre => {
+                    const option = document.createElement('option');
+                    option.value = genre;
+                    datalist.appendChild(option);
+                });
+            },
+
+            filterGames() {
+                const titleQuery = document.getElementById('search-title').value.toLowerCase();
+                const genreQuery = document.getElementById('search-genre').value.toLowerCase();
+                
+                const filtered = this.state.games.filter(game => {
+                    const matchTitle = (game.title || '').toLowerCase().includes(titleQuery);
+                    const matchGenre = (game.genre || '').toLowerCase().includes(genreQuery);
+                    return matchTitle && matchGenre;
+                });
+                
+                this.renderHomeGrid(filtered);
+            },
+
+            renderHomeGrid(gamesToRender = this.state.games) {
                 const container = document.getElementById('game-grid');
                 const emptyState = document.getElementById('home-empty-state');
                 const countEl = document.getElementById('home-game-count');
                 
                 container.innerHTML = '';
-                countEl.textContent = this.state.games.length;
+                countEl.textContent = gamesToRender.length;
 
-                if (this.state.games.length === 0) {
+                if (gamesToRender.length === 0) {
                     emptyState.classList.remove('hidden');
                     return;
                 }
                 
                 emptyState.classList.add('hidden');
 
-                this.state.games.forEach(game => {
+                gamesToRender.forEach(game => {
                     const card = document.createElement('div');
                     card.className = 'bg-white rounded-2xl overflow-hidden border-2 border-gray-100 card-hover cursor-pointer group flex flex-col h-full';
                     card.onclick = () => this.showDetail(game.id);
@@ -529,7 +578,7 @@
 
                 document.getElementById('detail-title').textContent = game.title;
                 document.getElementById('detail-genre').textContent = game.genre;
-                document.getElementById('detail-date').textContent = game.release_date || 'ไม่ระบุ';
+                document.getElementById('detail-date').textContent = this.formatDate(game.release_date) || 'ไม่ระบุ';
                 document.getElementById('detail-players').textContent = game.players || 'ไม่ระบุ';
                 document.getElementById('detail-languages').textContent = game.languages || 'ไม่ระบุ';
                 document.getElementById('detail-description').textContent = game.description;
@@ -576,7 +625,7 @@
                             <div class="font-medium text-gray-800 line-clamp-1">${game.title}</div>
                         </td>
                         <td class="p-3 text-sm text-gray-600">${game.genre}</td>
-                        <td class="p-3 text-sm text-gray-600">${game.release_date || '-'}</td>
+                        <td class="p-3 text-sm text-gray-600">${app.formatDate(game.release_date) || '-'}</td>
                         <td class="p-3 text-center">
                             <div class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onclick="app.editGame('${game.id}')" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไข">
@@ -651,7 +700,7 @@
                     document.getElementById('form-genre').value = game.genre;
                     document.getElementById('form-cover').value = game.cover_image;
                     document.getElementById('form-video').value = game.video_url || '';
-                    document.getElementById('form-date').value = game.release_date || '';
+                    document.getElementById('form-date').value = this.formatDateForInput(game.release_date) || '';
                     document.getElementById('form-players').value = game.players || '';
                     document.getElementById('form-languages').value = game.languages || '';
                     document.getElementById('form-description').value = game.description || '';
@@ -796,6 +845,40 @@
             },
 
             // 7. Utils
+            formatDate(dateString) {
+                if (!dateString) return '';
+                // ตัดเอาเฉพาะส่วนวันที่ (ก่อนตัวอักษร T) หากข้อมูลมาในรูปแบบ ISO Date เช่น 2024-10-16T17:00:00.000Z
+                let datePart = dateString;
+                if (typeof dateString === 'string' && dateString.includes('T')) {
+                    datePart = dateString.split('T')[0];
+                }
+                
+                // แปลงรูปแบบจาก YYYY-MM-DD เป็น DD-MM-YYYY
+                if (datePart && datePart.includes('-')) {
+                    const parts = datePart.split('-');
+                    if (parts.length === 3 && parts[0].length === 4) {
+                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                }
+                return datePart;
+            },
+
+            formatDateForInput(dateString) {
+                if (!dateString) return '';
+                // สำหรับแท็ก <input type="date"> ต้องใช้รูปแบบ YYYY-MM-DD เท่านั้น
+                if (typeof dateString === 'string' && dateString.includes('T')) {
+                    return dateString.split('T')[0];
+                }
+                // ถ้าเผลอเป็น DD-MM-YYYY มาให้สลับคืนเป็น YYYY-MM-DD ก่อนใส่ฟอร์ม
+                if (dateString && dateString.includes('-')) {
+                    const parts = dateString.split('-');
+                    if (parts.length === 3 && parts[2].length === 4) { 
+                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                }
+                return dateString;
+            },
+
             extractYouTubeId(url) {
                 if (!url) return null;
                 const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
