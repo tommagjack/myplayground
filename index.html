@@ -16,6 +16,9 @@
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- SortableJS (สำหรับลากสลับตำแหน่ง) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -512,6 +515,7 @@
                 isAdmin: false, // true if logged in successfully
                 adminCurrentPage: 1 // สำหรับระบบ Pagination
             },
+            sortable: null, // เก็บ instance ของ SortableJS
 
             // Mock Data for Demo (If no GAS URL provided)
             mockData: [
@@ -557,6 +561,11 @@
                 // Show target view
                 document.getElementById(`view-${viewId}`).classList.add('active');
                 this.state.currentView = viewId;
+
+                // อัปเดตหน้า Home เพื่อแสดง/ซ่อน ปุ่มลากสลับลำดับ
+                if (viewId === 'home') {
+                    this.filterGames();
+                }
 
                 // Smooth scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -623,6 +632,13 @@
                         if(index > -1) this.mockData[index] = payload;
                     } else if (action === 'deleteGame') {
                         this.mockData = this.mockData.filter(g => g.id !== payload.id);
+                    } else if (action === 'updateOrder') {
+                        const newMock = [];
+                        payload.ids.forEach(id => {
+                            const found = this.mockData.find(g => g.id === id);
+                            if (found) newMock.push(found);
+                        });
+                        this.mockData = newMock;
                     }
                     this.state.games = [...this.mockData];
                     return { status: 'success', id: resId };
@@ -703,10 +719,11 @@
                     return matchTitle && matchGenre && matchStatus;
                 });
                 
-                this.renderHomeGrid(filtered);
+                const isFiltered = titleQuery !== '' || genreQuery !== '' || !isAll;
+                this.renderHomeGrid(filtered, isFiltered);
             },
 
-            renderHomeGrid(gamesToRender = this.state.games) {
+            renderHomeGrid(gamesToRender = this.state.games, isFiltered = false) {
                 const container = document.getElementById('game-grid');
                 const emptyState = document.getElementById('home-empty-state');
                 const countEl = document.getElementById('home-game-count');
@@ -716,6 +733,7 @@
 
                 if (gamesToRender.length === 0) {
                     emptyState.classList.remove('hidden');
+                    if (this.sortable) { this.sortable.destroy(); this.sortable = null; }
                     return;
                 }
                 
@@ -724,6 +742,7 @@
                 gamesToRender.forEach(game => {
                     const card = document.createElement('div');
                     card.className = 'bg-white rounded-2xl overflow-hidden border-2 border-gray-100 card-hover cursor-pointer group flex flex-col h-full';
+                    card.setAttribute('data-id', game.id);
                     card.onclick = () => this.showDetail(game.id);
                     
                     const isOnline = game.is_online !== false && game.is_online !== 'false';
@@ -731,8 +750,18 @@
                         ? `<div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-600 shadow-sm flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Online</div>`
                         : `<div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-red-500 shadow-sm flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-red-500"></div> Offline</div>`;
                     
+                    let dragHandle = '';
+                    if (this.state.isAdmin && !isFiltered) {
+                        dragHandle = `
+                            <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm w-8 h-8 flex items-center justify-center rounded-full shadow-sm drag-handle cursor-grab hover:bg-gray-100 z-20 transition-colors" onclick="event.stopPropagation()" title="ลากเพื่อสลับลำดับ">
+                                <i class="fa-solid fa-up-down-left-right text-gray-600"></i>
+                            </div>
+                        `;
+                    }
+
                     card.innerHTML = `
                         <div class="relative pt-[120%] bg-gray-100 overflow-hidden">
+                            ${dragHandle}
                             <img src="${game.cover_image}" alt="${game.title}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/400x600?text=No+Image'">
                             <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-nintendo shadow-sm">
                                 ${game.genre || 'Game'}
@@ -745,6 +774,26 @@
                     `;
                     container.appendChild(card);
                 });
+
+                if (this.state.isAdmin && !isFiltered) {
+                    if (this.sortable) this.sortable.destroy();
+                    this.sortable = Sortable.create(container, {
+                        handle: '.drag-handle',
+                        animation: 150,
+                        ghostClass: 'opacity-50',
+                        onEnd: async (evt) => {
+                            if (evt.oldIndex === evt.newIndex) return;
+                            
+                            const item = this.state.games.splice(evt.oldIndex, 1)[0];
+                            this.state.games.splice(evt.newIndex, 0, item);
+                            
+                            await this.saveOrder();
+                        }
+                    });
+                } else if (this.sortable) {
+                    this.sortable.destroy();
+                    this.sortable = null;
+                }
             },
 
             showDetail(id) {
@@ -1014,6 +1063,39 @@
                     });
                 } finally {
                     this.showLoading(false);
+                }
+            },
+
+            async saveOrder() {
+                const newOrderIds = this.state.games.map(g => g.id);
+                
+                try {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true,
+                    });
+                    
+                    Toast.fire({
+                        icon: 'info',
+                        title: 'กำลังบันทึกลำดับ...'
+                    });
+
+                    const result = await this.apiPost('updateOrder', { ids: newOrderIds });
+                    
+                    if (result.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: 'บันทึกลำดับใหม่แล้ว'
+                        });
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'ไม่สามารถบันทึกลำดับได้: ' + error.message, 'error');
+                    this.loadGames(); // โหลดใหม่ถ้า error เพื่อจัดลำดับกลับ
                 }
             },
 
